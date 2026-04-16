@@ -120,5 +120,6 @@ jobs:
         files: |
           artifacts/ws002-${{ github.ref_name }}-linux-x64.zip
           artifacts/ws002-${{ github.ref_name }}-win-x64.zip
+        overwrite: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
