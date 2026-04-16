@@ -24,18 +24,7 @@ namespace ws002.Services
             await this.SendAsync("connected success");
         }
 
-        protected override async ValueTask OnSessionClosedAsync()
-        {
-            _logger.LogInformation("[DISCONNECT] Connection closed - Device: {DeviceId}, SessionId: {SessionId}", 
-                deviceid ?? "unknown", SessionID);
-            await base.OnSessionClosedAsync();
-        }
-
-        protected override async ValueTask OnErrorAsync(Exception e)
-        {
-            _logger.LogError(e, "[ERROR] Session error - Device: {DeviceId}, SessionId: {SessionId}", 
-                deviceid ?? "unknown", SessionID);
-            await base.OnErrorAsync(e);
-        }
+        // Note: OnSessionClosedAsync and OnErrorAsync are not available in SuperSocket 2.0 beta
+        // Session close events are handled through the Closed event in UserService
     }
 }
