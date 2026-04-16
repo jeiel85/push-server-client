@@ -195,7 +195,7 @@ Poscle35/bin/Debug/Poscle35.exe
   "Key": "CON",
   "Body": {
     "deviceId": "123456",
-    "com_id": "wavepostest",
+    "com_id": "demo",
     "rct_code": "1002"
   }
 }
@@ -236,7 +236,7 @@ Poscle35/bin/Debug/Poscle35.exe
 {
   "Key": "MSG",
   "Body": {
-    "com_id": "wavepostest",
+    "com_id": "demo",
     "rct_code": "1002",
     "order_info": "{\"AO_ID\": 473449, ...}"
   }

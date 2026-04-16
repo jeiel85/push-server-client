@@ -166,7 +166,7 @@ push-server-client/
 **MsgBin.cs** - 메시지 전송:
 ```csharp
 {
-  com_id: "wavepostest",      // 가맹점 ID
+  com_id: "demo",      // 가맹점 ID
   rct_code: "1002",          // 수신자 코드
   order_info: "{...}"        // 주문 정보 JSON
 }
@@ -175,7 +175,7 @@ push-server-client/
 **LogBin.cs** - 연결 로그:
 ```csharp
 {
-  com_id: "wavepostest",      // 가맹점 ID
+  com_id: "demo",      // 가맹점 ID
   rct_code: "1002",          // 수신자 코드
   deviceId: "123456"         // 디바이스 ID
 }
