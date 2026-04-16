@@ -6,11 +6,14 @@ on:
     paths:
       - 'ws002/**'
       - '.github/workflows/server.yml'
+      - 'Poscle35/**'
+      - 'Poscle35.sln'
   pull_request:
     branches: [ master ]
     paths:
       - 'ws002/**'
       - '.github/workflows/server.yml'
+  workflow_dispatch:
 
 jobs:
   build:
