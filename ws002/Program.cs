@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using SuperSocket;
 using SuperSocket.Command;
 using SuperSocket.ProtoBase;
@@ -15,8 +14,6 @@ namespace ws002
 {
     class Program
     {
-        private static ILogger<Program> _logger;
-
         static async Task Main(string[] args)
         {
             // Log 디렉토리 생성
@@ -37,35 +34,20 @@ namespace ws002
                 Log("INFO", "=== WebSocket Push Server Starting ===");
                 Log("INFO", $"Log directory: {logDirectory}");
 
-                var host = Host.CreateDefaultBuilder(args)
-                    .UseSuperSocket(options =>
-                    {
-                        options.AddServer<WebSocketSession>();
-                        options.AddCommand<StringPackageInfo, StringPackageConverter>(commandOptions =>
-                        {
-                            commandOptions.AddCommand<noneProc>();
-                            commandOptions.AddCommand<connectList>();
-                            commandOptions.AddCommand<CON>();
-                            commandOptions.AddCommand<MSG>();
-                        });
-                        options.AddListener(listener =>
-                        {
-                            listener.Port = 7000;
-                        });
-                    })
+                var host = WebSocketHostBuilder.Create(args)
+                    .UseSession<UserSession>()
                     .ConfigureServices((context, services) =>
                     {
                         services.AddSingleton<UserService>();
                     })
-                    .ConfigureLogging((context, logging) =>
+                    .UseCommand<StringPackageInfo, StringPackageConverter>(commandOptions =>
                     {
-                        logging.AddConsole();
-                        logging.SetMinimumLevel(LogLevel.Debug);
+                        commandOptions.AddCommand<noneProc>();
+                        commandOptions.AddCommand<connectList>();
+                        commandOptions.AddCommand<CON>();
+                        commandOptions.AddCommand<MSG>();
                     })
                     .Build();
-
-                var serviceProvider = host.Services;
-                _logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
                 Log("INFO", "Server configured. Starting host...");
                 await host.RunAsync();
