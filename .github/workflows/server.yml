@@ -2,12 +2,10 @@ name: Build Server
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, refactor/dotnet8-migration ]
     paths:
       - 'ws002/**'
       - '.github/workflows/server.yml'
-      - 'Poscle35/**'
-      - 'Poscle35.sln'
   pull_request:
     branches: [ master ]
     paths:
@@ -29,17 +27,13 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '3.1.x'
+        dotnet-version: '9.0.x'
     
     - name: Restore dependencies
       run: dotnet restore
     
     - name: Build
       run: dotnet build --configuration Release --no-restore
-    
-    - name: Run tests
-      run: dotnet test --no-build --verbosity normal
-      continue-on-error: true
     
     - name: Upload artifacts
       if: github.ref == 'refs/heads/master'

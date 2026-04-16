@@ -2,10 +2,9 @@
 
 > WebSocket 기반 실시간 푸시 알림 시스템 - 서버와 Windows Forms 클라이언트 샘플 프로젝트
 
-![.NET](https://img.shields.io/badge/.NET-Core%203.1-512BD4?style=flat-square&logo=.net)
-![.NET Framework](https://img.shields.io/badge/.NET%20Framework-3.5-512BD4?style=flat-square&logo=.net)
-![C#](https://img.shields.io/badge/C%23-9.0-239120?style=flat-square&logo=c-sharp)
-![WebSocket](https://img.shields.io/badge/WebSocket-SuperSocket-006400?style=flat-square)
+![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?style=flat-square&logo=.net)
+![C#](https://img.shields.io/badge/C%23-12.0-239120?style=flat-square&logo=c-sharp)
+![WebSocket](https://img.shields.io/badge/WebSocket-ASP.NET%20Core-006400?style=flat-square)
 ![Status](https://img.shields.io/badge/status-active-brightgreen?style=flat-square)
 
 ---
@@ -388,10 +387,11 @@ MIT License
 ## 👤 작성자
 
 **Project**: push-server-client  
+**Version**: 2.0.0  
 **Last Updated**: 2026-04-16
 
 ---
 
 <p align="center">
-  <sub>Built with ❤️ using .NET & WebSocket</sub>
+  <sub>Built with ❤️ using .NET 9 & WebSocket</sub>
 </p>
