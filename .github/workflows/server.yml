@@ -22,85 +22,90 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     defaults:
       run:
         working-directory: ws002
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    
+
     - name: Restore dependencies
       run: dotnet restore
-    
+
     - name: Build
       run: dotnet build --configuration ${{ env.PUBLISH_CONFIGURATION }} --no-restore
-    
-    - name: Publish
-      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish --self-contained false
-    
-    - name: Upload build artifacts
+
+    - name: Publish Linux
+      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/linux --self-contained false
+
+    - name: Publish Windows
+      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/windows
+
+    - name: Create Linux Release ZIP
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        cd publish/linux
+        zip -r ../ws002-${{ github.ref_name }}-linux-x64.zip .
+
+    - name: Create Windows Release ZIP
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        cd publish/windows
+        Compress-Archive -Path ./* -DestinationPath ../ws002-${{ github.ref_name }}-win-x64.zip -Force
+
+    - name: Upload Linux Artifact
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: actions/upload-artifact@v4
       with:
-        name: server-build
-        path: publish/
+        name: ws002-linux
+        path: publish/ws002-${{ github.ref_name }}-linux-x64.zip
         retention-days: 30
-    
-    - name: Create Release ZIP
-      if: startsWith(github.ref, 'refs/tags/v')
-      run: |
-        cd ../publish
-        zip -r ../ws002-${{ github.ref_name }}-linux-x64.zip .
-    
-    - name: Create GitHub Release
-      if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v2
-      with:
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-        files: |
-          ws002-${{ github.ref_name }}-linux-x64.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows:
-    runs-on: windows-latest
+    - name: Upload Windows Artifact
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ws002-windows
+        path: publish/ws002-${{ github.ref_name }}-win-x64.zip
+        retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
-    defaults:
-      run:
-        working-directory: ws002
-    
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+
+    - name: Download Linux Artifact
+      uses: actions/download-artifact@v4
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Publish
-      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish
-    
-    - name: Create Release ZIP
-      run: |
-        Compress-Archive -Path "publish\*" -DestinationPath "ws002-${{ github.ref_name }}-win-x64.zip" -Force
-    
-    - name: Upload to GitHub Release
+        name: ws002-linux
+        path: ./artifacts
+
+    - name: Download Windows Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ws002-windows
+        path: ./artifacts
+
+    - name: List Artifacts
+      run: ls -la artifacts/
+
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         draft: false
         prerelease: false
+        generate_release_notes: false
         files: |
-          ws002-${{ github.ref_name }}-win-x64.zip
+          artifacts/ws002-${{ github.ref_name }}-linux-x64.zip
+          artifacts/ws002-${{ github.ref_name }}-win-x64.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
