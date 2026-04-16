@@ -11,27 +11,27 @@ namespace ws002.Services
     public class UserService
     {
         private readonly ILogger<UserService> _logger;
-        private readonly HashSet<UserSession> _users;
+        private readonly HashSet<WebSocketSession> _users;
         private readonly object _lock = new object();
 
         public UserService(ILogger<UserService> logger)
         {
             _logger = logger;
-            _users = new HashSet<UserSession>();
+            _users = new HashSet<WebSocketSession>();
             _logger.LogInformation("[INIT] UserService initialized");
         }
 
-        public async ValueTask BroadcastMessage(UserSession session, string message)
+        public async ValueTask BroadcastMessage(WebSocketSession session, string message)
         {
             _logger.LogDebug("[BROADCAST] From {DeviceId}: {Message}", session.deviceid, message);
-            
+
             foreach (var u in _users)
             {
                 await u.SendAsync($"{session.deviceid}: {message}");
             }
         }
 
-        public async ValueTask EnterRoom(UserSession session)
+        public void AddSession(WebSocketSession session)
         {
             lock (_lock)
             {
@@ -43,12 +43,30 @@ namespace ws002.Services
 
             session.Closed += async (s, e) =>
             {
-                await LeaveRoom(s as UserSession);
+                await LeaveRoom(s as WebSocketSession);
             };
         }
 
-        public async ValueTask LeaveRoom(UserSession session)
+        public async ValueTask EnterRoom(WebSocketSession session)
         {
+            lock (_lock)
+            {
+                _users.Add(session);
+            }
+
+            _logger.LogInformation("[JOIN] Device joined - DeviceId: {DeviceId}, ComId: {ComId}, RctCode: {RctCode}, TotalUsers: {Count}",
+                session.deviceid, session.com_id, session.rct_code, _users.Count);
+
+            session.Closed += async (s, e) =>
+            {
+                await LeaveRoom(s as WebSocketSession);
+            };
+        }
+
+        public async ValueTask LeaveRoom(WebSocketSession? session)
+        {
+            if (session == null) return;
+
             lock (_lock)
             {
                 _users.Remove(session);
@@ -63,10 +81,10 @@ namespace ws002.Services
             }
         }
 
-        public async ValueTask GetConnectList(UserSession mySession)
+        public async ValueTask GetConnectList(WebSocketSession mySession)
         {
             _logger.LogDebug("[LIST] Connection list requested by {DeviceId}", mySession.deviceid);
-            
+
             var arr = new ArrayList();
             lock (_lock)
             {
@@ -87,24 +105,24 @@ namespace ws002.Services
             await mySession.SendAsync(JsonConvert.SerializeObject(res));
         }
 
-        public UserSession GetToSession(string comId, string rctCode)
+        public WebSocketSession? GetToSession(string? comId, string? rctCode)
         {
             lock (_lock)
             {
-                var session = _users.FirstOrDefault(u => 
-                    u.com_id?.Equals(comId) == true && 
+                var session = _users.FirstOrDefault(u =>
+                    u.com_id?.Equals(comId) == true &&
                     u.rct_code?.Equals(rctCode) == true);
-                
+
                 if (session == null)
                 {
                     _logger.LogWarning("[ROUTE] Session not found - ComId: {ComId}, RctCode: {RctCode}", comId, rctCode);
                 }
                 else
                 {
-                    _logger.LogDebug("[ROUTE] Session found - ComId: {ComId}, RctCode: {RctCode}, TargetDevice: {DeviceId}", 
+                    _logger.LogDebug("[ROUTE] Session found - ComId: {ComId}, RctCode: {RctCode}, TargetDevice: {DeviceId}",
                         comId, rctCode, session.deviceid);
                 }
-                
+
                 return session;
             }
         }
@@ -115,6 +133,15 @@ namespace ws002.Services
             {
                 return _users.Count;
             }
+        }
+
+        public void RemoveSession(WebSocketSession session)
+        {
+            lock (_lock)
+            {
+                _users.Remove(session);
+            }
+            _logger.LogInformation("[REMOVE] Session removed - DeviceId: {DeviceId}", session.deviceid);
         }
     }
 }
