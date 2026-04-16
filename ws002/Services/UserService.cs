@@ -1,30 +1,30 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
-
 
 namespace ws002.Services
 {
     public class UserService
     {
-
-        private ILogger _logger;
-
-        private HashSet<UserSession> _users;
+        private readonly ILogger<UserService> _logger;
+        private readonly HashSet<UserSession> _users;
+        private readonly object _lock = new object();
 
         public UserService(ILogger<UserService> logger)
         {
             _logger = logger;
             _users = new HashSet<UserSession>();
+            _logger.LogInformation("[INIT] UserService initialized");
         }
 
         public async ValueTask BroadcastMessage(UserSession session, string message)
         {
+            _logger.LogDebug("[BROADCAST] From {DeviceId}: {Message}", session.deviceid, message);
+            
             foreach (var u in _users)
             {
                 await u.SendAsync($"{session.deviceid}: {message}");
@@ -33,17 +33,13 @@ namespace ws002.Services
 
         public async ValueTask EnterRoom(UserSession session)
         {
-            lock (_users)
+            lock (_lock)
             {
                 _users.Add(session);
             }
 
-            //foreach (var u in _users)
-            //{
-            //    await u.SendAsync($"{session.deviceid} entered just now.");
-            //}
-
-            //_logger.LogInformation($"{session.deviceid} entered.");
+            _logger.LogInformation("[JOIN] Device joined - DeviceId: {DeviceId}, ComId: {ComId}, RctCode: {RctCode}, TotalUsers: {Count}",
+                session.deviceid, session.com_id, session.rct_code, _users.Count);
 
             session.Closed += async (s, e) =>
             {
@@ -53,27 +49,31 @@ namespace ws002.Services
 
         public async ValueTask LeaveRoom(UserSession session)
         {
-            lock (_users)
+            lock (_lock)
             {
                 _users.Remove(session);
             }
+
+            _logger.LogInformation("[LEAVE] Device left - DeviceId: {DeviceId}, TotalUsers: {Count}",
+                session.deviceid, _users.Count);
 
             foreach (var u in _users)
             {
                 await u.SendAsync($"{session.deviceid} left.");
             }
-
-            _logger.LogInformation($"{session.deviceid} left.");
         }
 
-
-        public async ValueTask getConnectList(UserSession mySession)
+        public async ValueTask GetConnectList(UserSession mySession)
         {
+            _logger.LogDebug("[LIST] Connection list requested by {DeviceId}", mySession.deviceid);
+            
             var arr = new ArrayList();
-
-            foreach (var u in _users)
+            lock (_lock)
             {
-                arr.Add(u.deviceid);
+                foreach (var u in _users)
+                {
+                    arr.Add(u.deviceid);
+                }
             }
 
             var res = new
@@ -83,16 +83,38 @@ namespace ws002.Services
                 arr
             };
 
+            _logger.LogInformation("[LIST] Sending connection list - Count: {Count}", _users.Count);
             await mySession.SendAsync(JsonConvert.SerializeObject(res));
         }
 
-        public UserSession getToSession(string comId, string rctCode)
+        public UserSession GetToSession(string comId, string rctCode)
         {
-            var buf = _users.Where(u => u.com_id.Equals(comId) && u.rct_code.Equals(rctCode)).FirstOrDefault();
-            //var buf = from u in _users where u.com_id == comId && u.rct_code == rctCode select u;
-
-            return buf;
+            lock (_lock)
+            {
+                var session = _users.FirstOrDefault(u => 
+                    u.com_id?.Equals(comId) == true && 
+                    u.rct_code?.Equals(rctCode) == true);
+                
+                if (session == null)
+                {
+                    _logger.LogWarning("[ROUTE] Session not found - ComId: {ComId}, RctCode: {RctCode}", comId, rctCode);
+                }
+                else
+                {
+                    _logger.LogDebug("[ROUTE] Session found - ComId: {ComId}, RctCode: {RctCode}, TargetDevice: {DeviceId}", 
+                        comId, rctCode, session.deviceid);
+                }
+                
+                return session;
+            }
         }
 
+        public int GetUserCount()
+        {
+            lock (_lock)
+            {
+                return _users.Count;
+            }
+        }
     }
 }

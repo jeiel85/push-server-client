@@ -1,0 +1,46 @@
+name: Build Server
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'ws002/**'
+      - '.github/workflows/server.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'ws002/**'
+      - '.github/workflows/server.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ws002
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '3.1.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal
+      continue-on-error: true
+    
+    - name: Upload artifacts
+      if: github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v4
+      with:
+        name: server-build
+        path: ws002/bin/Release/

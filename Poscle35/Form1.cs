@@ -1,10 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 
 namespace Poscle35
@@ -32,8 +27,9 @@ namespace Poscle35
             _wsc.myID = myIDValue.Text;
             _wsc.sessLabel = statusSession;
 
-            // 상태바 업데이트 콜백
+            // 콜백 등록
             _wsc.OnConnectionChanged = UpdateConnectionStatus;
+            _wsc.OnReconnecting = UpdateReconnectingStatus;
 
             // 시계 타이머
             _timer = new System.Windows.Forms.Timer();
@@ -122,6 +118,22 @@ namespace Poscle35
                 statusConnection.ForeColor = Color.FromArgb(220, 100, 100);
                 toolConnect.Enabled = true;
                 toolDisconnect.Enabled = false;
+            }
+        }
+
+        private void UpdateReconnectingStatus(string status, int retryCount, int maxRetry)
+        {
+            if (status.Contains("실패"))
+            {
+                statusConnection.Text = "● 재연결 실패";
+                statusConnection.ForeColor = Color.FromArgb(220, 100, 100);
+                toolConnect.Enabled = true;
+            }
+            else
+            {
+                statusConnection.Text = $"● 재연결 중 ({retryCount}/{maxRetry})";
+                statusConnection.ForeColor = Color.FromArgb(255, 200, 0);
+                toolConnect.Enabled = false;
             }
         }
     }

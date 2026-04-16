@@ -1,0 +1,42 @@
+name: Build Client
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'Poscle35/**'
+      - '.github/workflows/client.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'Poscle35/**'
+      - '.github/workflows/client.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    defaults:
+      run:
+        working-directory: Poscle35
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Restore NuGet packages
+      run: |
+        nuget restore Poscle35.sln
+    
+    - name: Build
+      run: |
+        msbuild Poscle35.sln /p:Configuration=Release /p:Platform="AnyCPU" /t:Build
+    
+    - name: Upload artifacts
+      if: github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v4
+      with:
+        name: client-build
+        path: Poscle35/bin/Release/

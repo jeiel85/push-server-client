@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using Poscle35.Models;
 using System;
-using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using WebSocketSharp;
 
@@ -10,6 +10,17 @@ namespace Poscle35
     internal class WScle
     {
         private WebSocket client;
+        private string currentAddress = "";
+        private int selectedServerIndex = 0;
+
+        // 재연결 설정
+        private const int MAX_RETRY_COUNT = 5;
+        private const int INITIAL_RETRY_DELAY_MS = 1000;
+        
+        private int retryCount = 0;
+        private bool isReconnecting = false;
+        private Timer reconnectTimer;
+        private bool isManualDisconnect = false;
 
         public RichTextBox ReqLog;
         public RichTextBox ResLog;
@@ -21,61 +32,160 @@ namespace Poscle35
 
         // 연결 상태 변경 콜백
         public Action<bool> OnConnectionChanged;
+        // 재연결 상태 콜백 (statusMessage, retryCount, maxRetry)
+        public Action<string, int, int> OnReconnecting;
 
         public void connectWS(int idx)
         {
-            string addr = "";
-            switch (idx)
+            selectedServerIndex = idx;
+            isManualDisconnect = false;
+            retryCount = 0;
+            ConnectToServer();
+        }
+
+        private void ConnectToServer()
+        {
+            try
             {
-                case 0:
-                    addr = "ws://localhost:7000/";
-                    break;
+                string addr = GetServerAddress(selectedServerIndex);
+                currentAddress = addr;
+
+                ReqWrite($"[연결 시도] {addr}");
+
+                client = new WebSocket(addr);
+
+                client.OnOpen += (sender, e) =>
+                {
+                    retryCount = 0;
+                    isReconnecting = false;
+                    ReqWrite($"[연결됨] {addr}");
+                    if (OnConnectionChanged != null)
+                        OnConnectionChanged(true);
+                };
+
+                client.OnClose += (sender, e) =>
+                {
+                    ReqWrite($"[연결 해제됨] {e.Reason}");
+                    if (OnConnectionChanged != null)
+                        OnConnectionChanged(false);
+                    
+                    // Manual disconnect가 아니면 재연결 시도
+                    if (!isManualDisconnect && !isReconnecting)
+                    {
+                        AttemptReconnect();
+                    }
+                };
+
+                client.OnError += (sender, e) =>
+                {
+                    string errorMsg = e.Exception?.Message ?? "알 수 없는 오류";
+                    ReqWrite($"[오류] {errorMsg}");
+                    if (OnConnectionChanged != null)
+                        OnConnectionChanged(false);
+                };
+
+                client.OnMessage += (sender, e) =>
+                {
+                    reseiveWS(e.Data);
+                };
+
+                client.Connect();
+            }
+            catch (Exception ex)
+            {
+                ReqWrite($"[연결 실패] {ex.Message}");
+                if (!isManualDisconnect)
+                {
+                    AttemptReconnect();
+                }
+            }
+        }
+
+        private void AttemptReconnect()
+        {
+            if (isReconnecting || isManualDisconnect || retryCount >= MAX_RETRY_COUNT)
+            {
+                if (retryCount >= MAX_RETRY_COUNT)
+                {
+                    ReqWrite($"[재연결 실패] 최대 재시도 횟수 ({MAX_RETRY_COUNT}회) 초과");
+                    if (OnReconnecting != null)
+                        OnReconnecting("재연결 실패", retryCount, MAX_RETRY_COUNT);
+                }
+                return;
             }
 
-            client = new WebSocket(addr);
+            isReconnecting = true;
+            retryCount++;
 
-            client.OnOpen += (sender, e) =>
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s...
+            int delayMs = INITIAL_RETRY_DELAY_MS * (int)Math.Pow(2, retryCount - 1);
+            string statusMsg = $"재연결 시도 ({retryCount}/{MAX_RETRY_COUNT}) - {delayMs / 1000}s 후...";
+
+            ReqWrite($"[재연결] {statusMsg}");
+            if (OnReconnecting != null)
+                OnReconnecting(statusMsg, retryCount, MAX_RETRY_COUNT);
+
+            reconnectTimer = new Timer(_ =>
             {
-                ReqWrite("[연결됨] " + addr);
-                if (OnConnectionChanged != null)
-                    OnConnectionChanged(true);
-            };
-
-            client.OnClose += (sender, e) =>
-            {
-                ReqWrite("[연결 해제됨] " + e.Reason);
-                if (OnConnectionChanged != null)
-                    OnConnectionChanged(false);
-            };
-
-            client.OnError += (sender, e) =>
-            {
-                ReqWrite("[오류] " + e.Exception.Message);
-                if (OnConnectionChanged != null)
-                    OnConnectionChanged(false);
-            };
-
-            client.OnMessage += (sender, e) =>
-            {
-                reseiveWS(e.Data);
-            };
-
-            client.Connect();
+                reconnectTimer?.Dispose();
+                reconnectTimer = null;
+                
+                if (!isManualDisconnect && retryCount < MAX_RETRY_COUNT)
+                {
+                    ReqWrite("[재연결] 서버에 재연결 중...");
+                    ConnectToServer();
+                }
+                else
+                {
+                    isReconnecting = false;
+                }
+            }, null, delayMs, Timeout.Infinite);
         }
 
         public void closeWS()
         {
-            if (client != null && client.IsAlive)
+            isManualDisconnect = true;
+            isReconnecting = false;
+            retryCount = 0;
+
+            if (reconnectTimer != null)
+            {
+                reconnectTimer?.Dispose();
+                reconnectTimer = null;
+            }
+
+            if (client != null)
             {
                 client.Close();
+                client = null;
+            }
+            
+            ReqWrite("[연결 해제됨] 사용자가 연결을 끊었습니다.");
+            if (OnConnectionChanged != null)
+                OnConnectionChanged(false);
+        }
+
+        private string GetServerAddress(int idx)
+        {
+            switch (idx)
+            {
+                case 0:
+                    return "ws://localhost:7000/";
+                default:
+                    return "ws://localhost:7000/";
             }
         }
 
         private void ReqWrite(string buf)
         {
+            if (ReqLog == null) return;
+
             if (ReqLog.InvokeRequired)
             {
-                ReqLog.Invoke(new MethodInvoker(delegate { ReqLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine; }));
+                ReqLog.Invoke(new MethodInvoker(delegate 
+                { 
+                    ReqLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine; 
+                }));
             }
             else
             {
@@ -85,9 +195,14 @@ namespace Poscle35
 
         private void LogWrite(string buf)
         {
+            if (ResLog == null) return;
+
             if (ResLog.InvokeRequired)
             {
-                ResLog.Invoke(new MethodInvoker(delegate { ResLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine; }));
+                ResLog.Invoke(new MethodInvoker(delegate 
+                { 
+                    ResLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine; 
+                }));
             }
             else
             {
@@ -238,6 +353,18 @@ namespace Poscle35
             }
 
             LogWrite(msg);
+        }
+
+        // 연결 상태 확인
+        public bool IsConnected
+        {
+            get { return client != null && client.IsAlive && !isReconnecting; }
+        }
+
+        // 재연결 상태 확인
+        public bool IsReconnecting
+        {
+            get { return isReconnecting; }
         }
     }
 }
