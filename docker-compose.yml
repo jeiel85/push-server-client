@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  push-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: push-server
+    ports:
+      - "7000:7000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:7000
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - push-network
+
+  # Optional: Redis for session store (uncomment when implementing #15)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: push-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #   restart: unless-stopped
+  #   networks:
+  #     - push-network
+
+networks:
+  push-network:
+    driver: bridge
+
+# volumes:
+#   redis-data:

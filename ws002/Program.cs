@@ -14,6 +14,7 @@ using Serilog;
 using System.Net.WebSockets;
 using System.Text;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
+using ws002.Middleware;
 using ws002.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,6 +77,9 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Push Server API v1");
     c.RoutePrefix = "swagger";
 });
+
+// Rate Limiting
+app.UseRateLimiting();
 
 // Prometheus metrics endpoint
 app.UseMetricServer();
