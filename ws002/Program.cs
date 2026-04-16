@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog;
+using SuperSocket;
 using SuperSocket.Command;
 using SuperSocket.ProtoBase;
 using SuperSocket.WebSocket.Server;
@@ -23,57 +23,61 @@ namespace ws002
             var logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
             Directory.CreateDirectory(logDirectory);
 
-            // Serilog 설정
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.Console(
-                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                .WriteTo.File(
-                    Path.Combine(logDirectory, "server-.log"),
-                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
-                    rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 7)
-                .CreateLogger();
+            // 로그 파일 작성 헬퍼
+            void Log(string level, string message)
+            {
+                var logLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {message}";
+                var logFile = Path.Combine(logDirectory, $"server-{DateTime.Now:yyyyMMdd}.log");
+                File.AppendAllText(logFile, logLine + Environment.NewLine);
+                Console.WriteLine(logLine);
+            }
 
             try
             {
-                Log.Information("=== WebSocket Push Server Starting ===");
-                Log.Information("Log directory: {LogDirectory}", logDirectory);
+                Log("INFO", "=== WebSocket Push Server Starting ===");
+                Log("INFO", $"Log directory: {logDirectory}");
 
-                var host = WebSocketHostBuilder.Create(args)
-                    .UseSession<UserSession>()
+                var host = Host.CreateDefaultBuilder(args)
+                    .UseSuperSocket(options =>
+                    {
+                        options.AddServer<WebSocketSession>();
+                        options.AddCommand<StringPackageInfo, StringPackageConverter>(commandOptions =>
+                        {
+                            commandOptions.AddCommand<noneProc>();
+                            commandOptions.AddCommand<connectList>();
+                            commandOptions.AddCommand<CON>();
+                            commandOptions.AddCommand<MSG>();
+                        });
+                        options.AddListener(listener =>
+                        {
+                            listener.Port = 7000;
+                        });
+                    })
                     .ConfigureServices((context, services) =>
                     {
                         services.AddSingleton<UserService>();
                     })
-                    .ConfigureLogging((hostCtx, loggingBuilder) =>
+                    .ConfigureLogging((context, logging) =>
                     {
-                        loggingBuilder.AddSerilog(Log.Logger);
-                    })
-                    .UseCommand<StringPackageInfo, StringPackageConverter>(commandOptions =>
-                    {
-                        commandOptions.AddCommand<noneProc>();
-                        commandOptions.AddCommand<connectList>();
-                        commandOptions.AddCommand<CON>();
-                        commandOptions.AddCommand<MSG>();
+                        logging.AddConsole();
+                        logging.SetMinimumLevel(LogLevel.Debug);
                     })
                     .Build();
 
-                // StartupLogger 주입
-                var serviceProvider = host.GetServiceProvider();
-                _logger = serviceProvider.GetService<ILogger<Program>>();
+                var serviceProvider = host.Services;
+                _logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
-                Log.Information("Server configured. Starting host...");
+                Log("INFO", "Server configured. Starting host...");
                 await host.RunAsync();
             }
             catch (Exception ex)
             {
-                Log.Fatal(ex, "Application terminated unexpectedly");
+                Log("ERROR", $"Application terminated unexpectedly: {ex.Message}");
+                Log("ERROR", ex.StackTrace ?? "");
             }
             finally
             {
-                Log.Information("=== WebSocket Push Server Shutdown ===");
-                Log.CloseAndFlush();
+                Log("INFO", "=== WebSocket Push Server Shutdown ===");
             }
         }
     }
