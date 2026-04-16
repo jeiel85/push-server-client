@@ -23,10 +23,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: ws002
-
     steps:
     - uses: actions/checkout@v4
 
@@ -37,15 +33,19 @@ jobs:
 
     - name: Restore dependencies
       run: dotnet restore
+      working-directory: ws002
 
     - name: Build
       run: dotnet build --configuration ${{ env.PUBLISH_CONFIGURATION }} --no-restore
+      working-directory: ws002
 
     - name: Publish Linux
       run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/linux --self-contained false
+      working-directory: ws002
 
     - name: Publish Windows
       run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/windows
+      working-directory: ws002
 
     - name: Create Linux Release ZIP
       if: startsWith(github.ref, 'refs/tags/v')
