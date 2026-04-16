@@ -16,6 +16,7 @@ using System.Text;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using ws002.Middleware;
 using ws002.Services;
+using ws002.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,19 @@ builder.Host.UseSerilog();
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddSingleton<UserService>();
+
+// Session Store (Redis or In-Memory)
+var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING");
+builder.Services.AddSessionStore(redisConnectionString);
+
+// JWT Authentication
+var jwtSettings = new JwtSettings
+{
+    SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "YourSuperSecretKeyThatShouldBeAtLeast32Characters!",
+    Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "PushServer",
+    Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "PushServerClients"
+};
+builder.Services.AddJwtAuthentication(jwtSettings);
 
 // Health Checks
 builder.Services.AddHealthChecks()
@@ -80,6 +94,9 @@ app.UseSwaggerUI(c =>
 
 // Rate Limiting
 app.UseRateLimiting();
+
+// JWT Authentication
+app.UseJwtAuthentication();
 
 // Prometheus metrics endpoint
 app.UseMetricServer();

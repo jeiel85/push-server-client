@@ -6,6 +6,7 @@
 ![C#](https://img.shields.io/badge/C%23-12.0-239120?style=flat-square&logo=c-sharp)
 ![WebSocket](https://img.shields.io/badge/WebSocket-ASP.NET%20Core-006400?style=flat-square)
 ![Status](https://img.shields.io/badge/status-active-brightgreen?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 ---
 
@@ -15,9 +16,13 @@
 - [기술 스택](#-기술-스택)
 - [프로젝트 구조](#-프로젝트-구조)
 - [빠른 시작](#-빠른-시작)
+- [Docker 지원](#-docker-지원)
+- [Kubernetes 배포](#-kubernetes-배포)
 - [통신 프로토콜](#-통신-프로토콜)
+- [REST API](#-rest-api)
+- [메트릭 모니터링](#-메트릭-모니터링)
 - [주요 기능](#-주요-기능)
-- [스크린샷](#-스크린샷)
+- [릴리즈](#-릴리즈)
 - [향후 확장](#-향후-확장)
 
 ---
@@ -29,10 +34,13 @@
 ### 주요 특징
 
 - ✅ **실시간 양방향 통신** - WebSocket 기반 즉각적인 메시지 교환
-- ✅ **命令 기반 아키텍처** - 확장 가능한 명령 핸들러 시스템
+- ✅ **명령 기반 아키텍처** - 확장 가능한 명령 핸들러 시스템
 - ✅ **다중 클라이언트 관리** - 세션 기반 사용자/디바이스 관리
 - ✅ **손쉬운 테스트** - Windows Forms 기반 그래픽 클라이언트 제공
-- ✅ **주문 정보 푸시** - 딜리버리/포스 환경에 최적화된 데이터 모델
+- ✅ **Docker/Kubernetes 지원** - 컨테이너 및 오케스트레이션 지원
+- ✅ **모니터링** - Prometheus 메트릭, Health Check
+- ✅ **Rate Limiting** - 클라이언트별 요청 제한
+- ✅ **Graceful Shutdown** - 안전한 서버 종료
 
 ### 사용 사례
 
@@ -47,31 +55,33 @@
 
 ## 🛠 기술 스택
 
-### 서버 (.NET Core 3.1)
+### 서버 (.NET 9)
 
 | 기술 | 버전 | 용도 |
 |------|------|------|
-| **.NET Core** | 3.1 | 런타임 |
-| **SuperSocket** | 2.0.0-beta.8 | WebSocket 서버 프레임워크 |
-| **Newtonsoft.Json** | 13.0.3 | JSON 직렬화/역직렬화 |
+| **.NET** | 9.0 | 런타임 |
+| **ASP.NET Core WebSocket** | Built-in | WebSocket 서버 |
+| **Serilog** | 8.0.1 | 구조화된 로깅 |
+| **Swagger** | 6.5.0 | API 문서화 |
+| **prometheus-net** | 8.2.1 | 메트릭 수집 |
 
-### 클라이언트 (.NET Framework 3.5)
+### 클라이언트 (.NET 9)
 
 | 기술 | 버전 | 용도 |
 |------|------|------|
-| **.NET Framework** | 3.5 | 런타임 |
-| **Windows Forms** | - | GUI 프레임워크 |
-| **websocket-sharp** | 1.0.3-rc11 | WebSocket 클라이언트 라이브러리 |
+| **.NET** | 9.0 | 런타임 |
+| **Windows Forms** | Built-in | GUI 프레임워크 |
+| **System.Net.WebSockets** | Built-in | WebSocket 클라이언트 |
 | **Newtonsoft.Json** | 13.0.3 | JSON 처리 |
 
 ### 개발 도구
 
 | 도구 | 추천 버전 |
 |------|----------|
-| **IDE** | Visual Studio 2019+ |
-| **.NET Core SDK** | 3.1.x |
-| **.NET Framework** | 3.5 |
-| **빌드 도구** | MSBuild |
+| **IDE** | Visual Studio 2022+ |
+| **.NET SDK** | 9.0.x |
+| **Docker** | 24.0+ |
+| **kubectl** | 1.28+ |
 
 ---
 
@@ -80,32 +90,29 @@
 ```
 push-server-client/
 │
-├── 📂 ws002/                          # 🔷 WebSocket Server
-│   ├── Program.cs                     # Entry point
-│   ├── StringPackageConverter.cs      # Packet converter
-│   ├── appsettings.json               # Configuration
-│   ├── Commands/                     # Command handlers
-│   │   ├── noneProc.cs              # Default handler
-│   │   ├── connectList.cs           # Connection list
-│   │   ├── MSG.cs                  # Message routing
-│   │   └── COMMAND_CON.cs           # Connection setup
-│   ├── Services/                     # Business logic
-│   │   ├── UserSession.cs          # Session management
-│   │   └── UserService.cs          # User management
-│   └── Models/                       # Data models
-│       ├── MsgBin.cs                # Message model
-│       └── LogBin.cs                # Log model
+├── 📂 ws002/                          # 🔷 WebSocket Server (.NET 9)
+│   ├── Program.cs                      # Entry point + 미들웨어
+│   ├── Middleware/
+│   │   └── RateLimitingMiddleware.cs   # Rate Limiting
+│   ├── Services/
+│   │   ├── UserService.cs              # 세션 관리
+│   │   └── WebSocketSession.cs         # WebSocket 세션
+│   ├── Models/                        # 데이터 모델
+│   ├── appsettings.json                # 프로덕션 설정
+│   └── ws002.csproj
 │
-├── 📂 Poscle35/                        # 🟢 Windows Forms Client
-│   ├── Program.cs                    # Entry point
-│   ├── Form1.cs / Form1.Designer.cs # Main UI
-│   ├── FormSub.cs                   # UI helpers
-│   ├── WScle.cs                    # WebSocket wrapper
-│   └── Models/                      # Data models
+├── 📂 Poscle35/                        # 🟢 Windows Forms Client (.NET 9)
+│   └── ...
 │
-├── 📄 ws002.sln                      # Solution file
-├── 📄 README.md                      # This file
-└── 📄 PROJECT_STRUCTURE.md          # Detailed architecture
+├── 📂 k8s/                            # ☸️ Kubernetes 매니페스트
+│   ├── deployment.yaml                  # Deployment + Service + HPA
+│   ├── configmap.yaml                 # ConfigMap
+│   └── ingress.yaml                    # Ingress
+│
+├── 📄 Dockerfile                       # Docker 빌드
+├── 📄 docker-compose.yml               # Docker Compose
+├── 📄 README.md                        # 이 파일
+└── 📄 PROJECT_STRUCTURE.md             # 상세 아키텍처 문서
 ```
 
 ---
@@ -114,10 +121,9 @@ push-server-client/
 
 ### 사전 요구사항
 
-- Windows OS
-- Visual Studio 2019+
-- .NET Core 3.1 SDK
-- .NET Framework 3.5
+- Windows/Linux/macOS
+- .NET 9 SDK
+- Visual Studio 2022+ (선택)
 
 ### 서버 실행
 
@@ -134,10 +140,11 @@ dotnet run
 
 서버가 실행되면 다음 로그가 표시됩니다:
 ```
-info: SuperSocket.WebSocket.WebSocketServer[0]
-      Started SuperSocket[SuperSocket.WebSocket.WebSocketServer]
-info: SuperSocket.SocketBase.BaseServer[0]
-      The server TestWebSocketServer has been started on port 7000
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[]
+      User profile is available. Using 'C:\Users\...\' for temporary key storage.
+info: Microsoft.AspNetCore.Server.Kestrel[]
+      Start listening on http://0.0.0.0:7000
+=== WebSocket Push Server Starting on port 7000 ===
 ```
 
 ### 클라이언트 실행
@@ -147,20 +154,76 @@ info: SuperSocket.SocketBase.BaseServer[0]
 # F5 또는 Ctrl+F5로 실행
 ```
 
-또는 빌드된 exe 파일 실행:
+---
+
+## 🐳 Docker 지원
+
+### Dockerfile 빌드
+
 ```bash
-Poscle35/bin/Debug/Poscle35.exe
+# Docker 이미지 빌드
+docker build -t push-server:latest .
+
+# 컨테이너 실행
+docker run -d -p 7000:7000 --name push-server push-server:latest
 ```
 
-### 연결 테스트 순서
+### Docker Compose
 
-1. **서버 먼저 실행** (포트 7000)
-2. **클라이언트 실행**
-3. **클라이언트 UI에서 테스트**:
-   - `WS connect` → 연결
-   - `WS 1st con` → 세션 등록
-   - `WS connectList` → 연결 목록 확인
-   - `WS to send` → 메시지 전송
+```bash
+# 모든 서비스 실행
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f push-server
+
+# 중지
+docker-compose down
+```
+
+### 환경 변수
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `ASPNETCORE_ENVIRONMENT` | Production | 실행 환경 |
+| `ASPNETCORE_URLS` | http://+:7000 | 바인딩 URL |
+
+---
+
+## ☸️ Kubernetes 배포
+
+### 네임스페이스 생성
+
+```bash
+kubectl apply -f k8s/configmap.yaml
+```
+
+### 배포
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+
+# 상태 확인
+kubectl get pods -n push-system
+kubectl get svc -n push-system
+kubectl get hpa -n push-system
+```
+
+### Ingress 적용
+
+```bash
+kubectl apply -f k8s/ingress.yaml
+```
+
+### 헬스체크 확인
+
+```bash
+# Liveness Probe
+kubectl exec -it <pod-name> -n push-system -- curl http://localhost:7000/health/live
+
+# Readiness Probe
+kubectl exec -it <pod-name> -n push-system -- curl http://localhost:7000/health/ready
+```
 
 ---
 
@@ -252,6 +315,63 @@ Poscle35/bin/Debug/Poscle35.exe
 
 ---
 
+## 📚 REST API
+
+### Health Check
+
+| 엔드포인트 | 설명 |
+|-----------|------|
+| `GET /health` | 기본 health check |
+| `GET /health/live` | Liveness probe |
+| `GET /health/ready` | Readiness probe |
+
+**응답 예시:**
+```json
+{
+  "status": "Healthy",
+  "checks": [
+    { "name": "self", "status": "Healthy", "description": "Server is running" },
+    { "name": "websocket", "status": "Healthy", "description": "Active connections: 5" }
+  ]
+}
+```
+
+### Swagger/OpenAPI
+
+- **URL**: `http://localhost:7000/swagger`
+- Interactive API 문서 및 테스트 인터페이스 제공
+
+---
+
+## 📊 메트릭 모니터링
+
+### Prometheus 엔드포인트
+
+- **URL**: `http://localhost:7000/metrics`
+
+### 수집 메트릭
+
+| 메트릭 | 타입 | 설명 |
+|--------|------|------|
+| `websocket_connections_active` | Gauge | 활성 연결 수 |
+| `websocket_messages_received_total` | Counter | 수신된 메시지 수 |
+| `websocket_messages_sent_total` | Counter | 전송된 메시지 수 |
+| `websocket_connection_duration_seconds` | Histogram | 연결 시간 |
+| `http_requests_total` | Counter | HTTP 요청 수 |
+| `http_request_duration_seconds` | Histogram | 요청 처리 시간 |
+
+### Prometheus 설정
+
+```yaml
+scrape_configs:
+  - job_name: 'push-server'
+    static_configs:
+      - targets: ['push-server:7000']
+    metrics_path: '/metrics'
+```
+
+---
+
 ## ⚡ 주요 기능
 
 ### 서버 기능
@@ -262,7 +382,12 @@ Poscle35/bin/Debug/Poscle35.exe
 | 📋 **세션 관리** | deviceid, com_id, rct_code 기반 세션 추적 |
 | 📨 **메시지 라우팅** | com_id + rct_code로 특정 클라이언트寻址 |
 | 📊 **연결 목록** | 현재 연결된 모든 클라이언트 조회 |
-| 📝 **로깅** | 연결/해제 이벤트 로깅 |
+| 📝 **로깅** | Serilog + 파일 로깅 (Rolling) |
+| 💓 **Health Check** | Kubernetes 프로브 지원 |
+| 📈 **메트릭** | Prometheus 메트릭 수집 |
+| 🚦 **Rate Limiting** | IP별 요청 제한 (1000 req/min) |
+| 🔄 **Graceful Shutdown** | 30초 타임아웃 |
+| 📚 **API 문서화** | Swagger/OpenAPI |
 
 ### 클라이언트 기능
 
@@ -272,9 +397,10 @@ Poscle35/bin/Debug/Poscle35.exe
 | 🔗 **연결 관리** | 원-click 연결/연결 해제 |
 | 📤 **요청 전송** | 미리 정의된 명령 템플릿 전송 |
 | 📥 **응답 표시** | 요청/응답 로그 별도 표시 |
-| 🛡️ **스레드 세이프** | 비동기 콜백에서의 안전한 UI 업데이트 |
 
-### 데이터 모델
+---
+
+## 📦 데이터 모델
 
 **주문 정보 (order_info):**
 ```json
@@ -296,74 +422,39 @@ Poscle35/bin/Debug/Poscle35.exe
 
 ---
 
-## 📸 스크린샷
+## 📦 릴리즈
 
-### 클라이언트 UI 레이아웃
+| 버전 | 날짜 | 변경사항 |
+|------|------|----------|
+| [v2.1.0](https://github.com/jeiel85/push-server-client/releases/tag/v2.1.0) | 2026-04-16 | 코드 품질 개선 (Health Check, Swagger, Prometheus, Graceful Shutdown) |
+| [v2.0.0](https://github.com/jeiel85/push-server-client/releases/tag/v2.0.0) | 2026-04-16 | .NET 9 마이그레이션 |
+| [v1.1.1](https://github.com/jeiel85/push-server-client/releases/tag/v1.1.1) | 2026-04-16 | UI 개선 |
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│  Server: [로컬 ▼]    SessionID: xxxx-xx-xx      MyID: 0000     │
-├──────────┬──────────────────────┬──────────────────────────────┤
-│ Menu     │ Request Log          │ Response Log                  │
-│          │                      │                               │
-│ WS connect│ {                  │ {                             │
-│ WS Disc.. │   "Key": "CON",     │   "sessionID": "SR_001D7F9E" │
-│ WS 1st con│   "Body": {...}     │ }                             │
-│ WS conn.. │ }                   │                               │
-│ WS to send│                     │ {                             │
-│          │                      │   "res": "connectList",      │
-│          │                      │   "cnt": 2                    │
-│          │                      │ }                             │
-│          │                      │                               │
-├──────────┴──────────────────────┴──────────────────────────────┤
-│                                          [SEND]      [CLEAR]    │
-└────────────────────────────────────────────────────────────────┘
-```
+### 릴리즈 애셋
 
-### 통신 흐름
-
-```
-┌─────────────┐                              ┌─────────────┐
-│   Client    │  ─────── CON {deviceId} ──▶ │   Server    │
-│  (Poscle35) │  ◀───── {sessionID} ─────── │  (ws002)    │
-│             │                              │             │
-│             │  ── connectList {deviceId} ─▶│             │
-│             │  ◀── {cnt, arr[]} ──────────│             │
-│             │                              │             │
-│             │  ── MSG {com_id, order} ──▶ │             │
-│             │  ◀── {res: "MSG"} ──────────│             │
-└─────────────┘                              └─────────────┘
-```
+각 릴리즈에는 Windows x64 실행 파일이 포함되어 있습니다:
+- `ws002-v{x.y.z}-win-x64.zip`
 
 ---
 
 ## 🔮 향후 확장
 
-### 즉시 적용 가능
+### 진행 중인 항목
 
-| 확장 | 설명 | 난이도 |
-|------|------|--------|
-| 🔒 **TLS/SSL** | WSS 프로토콜 적용 | ⭐⭐ |
-| 📱 **REST API** | HTTP 엔드포인트 추가 | ⭐⭐ |
-| 📊 **모니터링** | 실시간 대시보드 | ⭐⭐⭐ |
+| 확장 | 설명 | 상태 |
+|------|------|------|
+| 🔐 **JWT 인증** | 토큰 기반 인증 시스템 | 📋 예정 |
+| 🔄 **Redis 세션** | 분산 세션 스토어 | 📋 예정 |
+| 🔒 **메시지 암호화** | AES-256 메시지 암호화 | 📋 예정 |
+| 📦 **NuGet SDK** | .NET 클라이언트 SDK | 📋 예정 |
 
 ### 추가 개발 필요
 
 | 확장 | 설명 | 난이도 |
 |------|------|--------|
 | 🗄️ **DB 연동** | MySQL 주문 저장 | ⭐⭐⭐ |
-| 🔑 **JWT 인증** | 토큰 기반 인증 | ⭐⭐⭐ |
-| 🔄 **Redis 캐시** | 세션 스토어 분리 | ⭐⭐⭐⭐ |
-| 🐳 **Docker** | 컨테이너화 | ⭐⭐ |
-| ☁️ **클라우드 배포** | AWS/Azure 배포 | ⭐⭐⭐ |
-
-### 권장 개선사항
-
-1. **에러 처리 강화** - 재연결 로직, 타임아웃 처리
-2. **로깅 시스템** - Serilog 연동, 파일/DB 로깅
-3. **API 문서화** - Swagger/OpenAPI 적용
-4. **단위 테스트** - xUnit/NUnit 테스트 추가
-5. **CI/CD** - GitHub Actions 빌드 자동화
+| 📊 **모니터링 대시보드** | Grafana 대시보드 템플릿 | ⭐⭐⭐ |
+| ☁️ **클라우드 배포** | AWS/Azure 배포 가이드 | ⭐⭐⭐ |
 
 ---
 
@@ -373,8 +464,9 @@ Poscle35/bin/Debug/Poscle35.exe
 |------|------|
 | [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) | 상세 프로젝트 구조 및 아키텍처 |
 | [ws002/Program.cs](./ws002/Program.cs) | 서버 엔트리포인트 |
-| [Poscle35/WScle.cs](./Poscle35/WScle.cs) | WebSocket 클라이언트 구현 |
-| [ws002/appsettings.json](./ws002/appsettings.json) | 서버 설정 |
+| [ws002/Services/UserService.cs](./ws002/Services/UserService.cs) | 세션 관리 |
+| [Dockerfile](./Dockerfile) | Docker 빌드 설정 |
+| [k8s/deployment.yaml](./k8s/deployment.yaml) | Kubernetes 배포 |
 
 ---
 
@@ -386,8 +478,8 @@ MIT License
 
 ## 👤 작성자
 
-**Project**: push-server-client  
-**Version**: 2.0.0  
+**Project**: push-server-client
+**Version**: 2.1.0
 **Last Updated**: 2026-04-16
 
 ---
