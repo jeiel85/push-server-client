@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Poscle35.Models;
 using System;
 using System.Text;
@@ -11,23 +11,16 @@ namespace Poscle35
     {
         private WebSocket client;
 
-        public TextBox ReqLog;
-        public TextBox ResLog;
+        public RichTextBox ReqLog;
+        public RichTextBox ResLog;
         public Label sessLabel;
 
         public string myID = "";
         public string cmdKey = "";
         public string sessionID = "";
-        private void ReqWrite(string buf)
-        {
-            ReqLog.Text += buf + Environment.NewLine;
-        }
 
-        private void LogWrite(string buf)
-        {
-            ResLog.Text += buf;
-            ResLog.Text += Environment.NewLine;
-        }
+        // 연결 상태 변경 콜백
+        public Action<bool> OnConnectionChanged;
 
         public void connectWS(int idx)
         {
@@ -39,34 +32,67 @@ namespace Poscle35
                     break;
             }
 
-            //client = new ClientWebSocket();
-
-            //client.ConnectAsync(new Uri(addr), CancellationToken.None).Wait();
-
-            //var receiving = Receiving(client);
-            //Task.WhenAll(receiving);
-
             client = new WebSocket(addr);
-            client.OnMessage += (sender, e) => { 
-                reseiveWS(e.Data); 
+
+            client.OnOpen += (sender, e) =>
+            {
+                ReqWrite("[연결됨] " + addr);
+                if (OnConnectionChanged != null)
+                    OnConnectionChanged(true);
+            };
+
+            client.OnClose += (sender, e) =>
+            {
+                ReqWrite("[연결 해제됨] " + e.Reason);
+                if (OnConnectionChanged != null)
+                    OnConnectionChanged(false);
+            };
+
+            client.OnError += (sender, e) =>
+            {
+                ReqWrite("[오류] " + e.Exception.Message);
+                if (OnConnectionChanged != null)
+                    OnConnectionChanged(false);
+            };
+
+            client.OnMessage += (sender, e) =>
+            {
+                reseiveWS(e.Data);
             };
 
             client.Connect();
-
-            //using (var ws = new WebSocket("ws://dragonsnest.far/Laputa"))
-            //{
-            //    ws.OnMessage += (sender, e) =>
-            //                      Console.WriteLine("Laputa says: " + e.Data);
-
-            //    ws.Connect();
-            //    ws.Send("BALUS");
-            //    Console.ReadKey(true);
-            //}
         }
 
         public void closeWS()
         {
-            //client.Abort();
+            if (client != null && client.IsAlive)
+            {
+                client.Close();
+            }
+        }
+
+        private void ReqWrite(string buf)
+        {
+            if (ReqLog.InvokeRequired)
+            {
+                ReqLog.Invoke(new MethodInvoker(delegate { ReqLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine; }));
+            }
+            else
+            {
+                ReqLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine;
+            }
+        }
+
+        private void LogWrite(string buf)
+        {
+            if (ResLog.InvokeRequired)
+            {
+                ResLog.Invoke(new MethodInvoker(delegate { ResLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine; }));
+            }
+            else
+            {
+                ResLog.Text += DateTime.Now.ToString("[HH:mm:ss] ") + buf + Environment.NewLine;
+            }
         }
 
         public string getReqData(string _key)
@@ -99,7 +125,6 @@ namespace Poscle35
                         {
                             deviceId = myID
                         }
-
                     };
                     break;
                 case "WS to send":
@@ -166,11 +191,9 @@ namespace Poscle35
                                     ORDER_COMPANY_NAME = "카톡주문",
                                     CHANNEL_ORDER_NO = "",
                                     CHANNEL_SHORT_ORDER_NO = ""
-                                }
-
-                                , Formatting.Indented)
+                                },
+                                Formatting.Indented)
                         }
-
                     };
                     break;
                 default:
@@ -182,35 +205,16 @@ namespace Poscle35
 
         public void sendWS()
         {
-            //var message = ReqLog.Text;
-
-            //var bytes = Encoding.UTF8.GetBytes(message);
-
-            //client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).Wait();
-
-            client.Send(ReqLog.Text);
+            if (client != null && client.IsAlive)
+            {
+                client.Send(ReqLog.Text);
+                ReqWrite("[전송] " + cmdKey);
+            }
+            else
+            {
+                MessageBox.Show("먼저 서버에 연결하세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
-
-        //private async Task Receiving(ClientWebSocket client)
-        //{
-        //    var buffer = new byte[1024 * 4];
-
-        //    while (true)
-        //    {
-        //        var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-        //        if (result.MessageType == WebSocketMessageType.Text)
-        //        {
-        //            var buf = Encoding.UTF8.GetString(buffer, 0, result.Count);
-        //            reseiveWS(buf);
-        //        }
-        //        else if (result.MessageType == WebSocketMessageType.Close)
-        //        {
-        //            await client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
-        //            break;
-        //        }
-        //    }
-        //}
 
         public void reseiveWS(string msg)
         {
@@ -220,7 +224,11 @@ namespace Poscle35
                     var buf = JsonConvert.DeserializeObject<SessoinModel>(msg);
                     if (buf != null)
                     {
-                        sessLabel.Text = sessionID = buf.sessionID;
+                        sessionID = buf.sessionID;
+                        if (sessLabel != null)
+                        {
+                            sessLabel.Text = "Session: " + sessionID;
+                        }
                     }
                     break;
                 case "WS connectList":
@@ -231,6 +239,5 @@ namespace Poscle35
 
             LogWrite(msg);
         }
-
     }
 }
