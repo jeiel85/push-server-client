@@ -6,44 +6,45 @@
 
 ## 📊 현재 상태 요약
 
-| 구성요소 | 현재 상태 | 우선순위 |
-|---------|---------|---------|
+| 구성요소 | 현재 상태 | 상태 |
+|---------|---------|------|
 | **서버 (ws002)** | .NET Core 3.1, 포트 7000, SuperSocket | - |
 | **클라이언트 (Poscle35)** | .NET Framework 3.5, Windows Forms | - |
-| **WebSocket** | 기본 연결/메시지 전송 가능 | - |
+| **WebSocket** | 연결/메시지 전송/재연결 | ✅ 완료 |
 | **문서화** | README.md, PROJECT_STRUCTURE.md | ✅ 완료 |
-| **CI/CD** | 미구현 | ⚠️ 필요 |
-| **보안** | TLS 미활성화, credentials 노출 | ⚠️ 위험 |
+| **CI/CD** | GitHub Actions 자동 빌드 | ✅ 완료 |
+| **보안** | credentials 제거, TLS 설정 템플릿 | ✅ 완료 |
+| **로깅** | Serilog + 파일 로깅 (7일) | ✅ 완료 |
 
 ---
 
 ## 🎯 개선 로드맵
 
-### Phase 1: 안정성 강화 (Immediate)
+### ✅ Phase 1: 안정성 강화 (완료)
 
-| 이슈 | 설명 | 난이도 | 예상 시간 |
-|------|------|--------|----------|
-| 🔄 **WebSocket 재연결 로직** | 연결 끊김 시 자동 재시도, 백오프 전략 | ⭐⭐ | 2-4h |
-| 🛡️ **보안 강화** | credentials 제거, secrets 관리 | ⭐⭐ | 1-2h |
-| 📝 **에러 처리 개선** | 예외 처리, 로깅 강화 | ⭐⭐ | 2-3h |
+| 이슈 | 설명 | 상태 | 커밋 |
+|------|------|------|------|
+| 🔄 **WebSocket 재연결 로직** | 자동 재시도, 백오프 전략 | ✅ 완료 | a4993cc |
+| 🛡️ **보안 강화** | credentials 제거, secrets 관리 | ✅ 완료 | a4993cc |
+| 📝 **에러 처리 개선** | Serilog, 파일 로깅 | ✅ 완료 | a4993cc |
 
-### Phase 2: 개발 효율성 (Short-term)
+### ✅ Phase 2: 개발 효율성 (완료)
 
-| 이슈 | 설명 | 난이도 | 예상 시간 |
-|------|------|--------|----------|
-| ⚙️ **CI/CD 파이프라인** | GitHub Actions로 빌드 자동화 | ⭐⭐⭐ | 4-6h |
-| 🐳 **Docker 지원** | 서버 컨테이너화 | ⭐⭐ | 3-4h |
-| 🔒 **TLS/SSL 적용** | WSS 프로토콜 활성화 | ⭐⭐ | 2-3h |
+| 이슈 | 설명 | 상태 | 커밋 |
+|------|------|------|------|
+| ⚙️ **CI/CD 파이프라인** | GitHub Actions 자동 빌드 | ✅ 완료 | a4993cc |
+| 🐳 **Docker 지원** | - | 📋 미진행 | - |
+| 🔒 **TLS/SSL 적용** | 설정 템플릿, 가이드 문서 | ✅ 완료 | a4993cc |
 
-### Phase 3: 코드 품질 (Medium-term)
+### 📋 Phase 3: 코드 품질 (예정)
 
 | 이슈 | 설명 | 난이도 | 예상 시간 |
 |------|------|--------|----------|
 | 🧪 **단위 테스트** | xUnit/NUnit 테스트 추가 | ⭐⭐⭐ | 1-2d |
 | 📦 **프레임워크 업그레이드** | .NET 6/7 마이그레이션 | ⭐⭐⭐⭐ | 1-2w |
-| 🔧 **SDK-style 프로젝트** | csprojmodern화 | ⭐⭐ | 2-3d |
+| 🔧 **SDK-style 프로젝트** | csproj modern화 | ⭐⭐ | 2-3d |
 
-### Phase 4: 기능 확장 (Long-term)
+### 📋 Phase 4: 기능 확장 (예정)
 
 | 이슈 | 설명 | 난이도 | 예상 시간 |
 |------|------|--------|----------|
@@ -54,110 +55,78 @@
 
 ---
 
-## 📋 상세 개선사항
+## ✅ 완료된 개선사항 상세
 
-### 1. WebSocket 재연결 로직
+### 1. WebSocket 재연결 로직 (✅ 완료)
 
-**현재 상태**: 연결 실패 시 재시도 없음
-
-**개선 목표**:
-- 연결 끊김 감지
+**구현 내용**:
+- 연결 끊김 자동 감지
 - 자동 재연결 (최대 5회)
-- 백오프 전략 (1s, 2s, 4s, 8s...)
-- 재연결 실패 시 사용자 알림
+- Exponential backoff: 1s → 2s → 4s → 8s → 16s
+- 재연결 상태 콜백 및 UI 인디케이터
+- 수동 연결 해제 시 재연결 방지
 
-```csharp
-// 개선 예시
-public async Task ConnectWithRetry(int maxRetries = 5)
-{
-    var retryCount = 0;
-    while (retryCount < maxRetries)
-    {
-        try
-        {
-            await ConnectAsync();
-            return;
-        }
-        catch
-        {
-            retryCount++;
-            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount));
-            await Task.Delay(delay);
-        }
-    }
-}
+### 2. 보안 강화 (✅ 완료)
+
+**구현 내용**:
+- `appsettings.json`에서 credentials 제거
+- 환경변수 지원: `${DB_CONNECTION_STRING}`
+- `appsettings.Development.json`로 개발용 설정 분리
+- 프로덕션: GitHub Secrets 또는 환경변수 사용
+
+### 3. 로깅 시스템 (✅ 완료)
+
+**구현 내용**:
+- Serilog 통합 (Console + File sinks)
+- 구조화된 로그 포맷
+- Rolling file logs (7일 보관)
+- 모든 서비스/커맨드에 로깅 추가
+- 에러 스택 트레이스 기록
+
+### 4. CI/CD 파이프라인 (✅ 완료)
+
+**구현 내용**:
+- `.github/workflows/server.yml` - .NET Core 서버 빌드
+- `.github/workflows/client.yml` - MSBuild 클라이언트 빌드
+- Push/PR 시 자동 빌드 트리거
+- 아티팩트 업로드 (master 브랜치)
+
+### 5. TLS/SSL 설정 (✅ 완료)
+
+**구현 내용**:
+- `appsettings.json`에 TLS 설정 템플릿
+- `docs/TLS_SETUP.md` 문서화
+- 자체 서명 인증서 생성 가이드
+- Let's Encrypt 프로덕션 인증서 가이드
+
+---
+
+## 📁 프로젝트 구조 (최신)
+
 ```
-
-### 2. 보안 강화
-
-**현재 상태**: credentials가 appsettings.json에 하드코딩
-
-**개선 목표**:
-- secrets를 환경변수 또는 GitHub Secrets로 관리
-- appsettings.json에서 실제 값 제거
-- 개발용 appsettings.Development.json 사용
-
-```json
-// 개선 후
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "${DB_CONNECTION_STRING}"
-  }
-}
+push-server-client/
+├── 📂 ws002/                    # 서버
+│   ├── appsettings.json         # 프로덕션 설정 (secrets 환경변수)
+│   ├── appsettings.Development.json  # 개발용 설정
+│   ├── Program.cs               # Serilog 로깅
+│   ├── Commands/                # 로깅 추가
+│   └── Services/                # 로깅 추가
+│
+├── 📂 Poscle35/                # 클라이언트
+│   ├── WScle.cs                # 재연결 로직
+│   └── Form1.cs                 # 상태 UI
+│
+├── 📂 .github/workflows/        # CI/CD
+│   ├── server.yml              # 서버 빌드
+│   └── client.yml              # 클라이언트 빌드
+│
+├── 📂 docs/
+│   └── TLS_SETUP.md            # TLS 설정 가이드
+│
+├── 📄 ROADMAP.md               # 로드맵
+├── 📄 README.md                # 프로젝트 문서
+└── 📄 PROJECT_STRUCTURE.md     # 구조 문서
 ```
-
-### 3. CI/CD 파이프라인
-
-**현재 상태**: 수동 빌드
-
-**개선 목표**:
-- GitHub Actions로 자동 빌드/테스트
-- PR 시 자동 검증
-- Release 시 자동 배포
-
-```yaml
-# 서버 빌드 워크플로우 예시
-name: Build Server
-on: [push, pull_request]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '3.1.x'
-      - run: dotnet build ws002/ws002.csproj
-      - run: dotnet test
-```
-
-### 4. TLS/SSL 적용
-
-**현재 상태**: ws:// (평문)
-
-**개선 목표**:
-- WSS:// 프로토콜로 전환
-- 자체 서명 인증서 (개발용)
-- 정식 인증서 (운영용)
-
-### 5. 단위 테스트
-
-**현재 상태**: 테스트 없음
-
-**개선 목표**:
-- Commands 핸들러 테스트
-- Services 로직 테스트
-- Integration 테스트 (WebSocket 통신)
-
-### 6. 프레임워크 업그레이드
-
-**현재 상태**:
-- 서버: .NET Core 3.1
-- 클라이언트: .NET Framework 3.5
-
-**개선 목표**:
-- 서버: .NET 6/7/8 LTS
-- 클라이언트: .NET 6/7 + WinForms 또는 WPF
 
 ---
 
@@ -175,14 +144,14 @@ jobs:
 | `refactoring` | 리팩토링 | 🟣 purple |
 | `good first issue` | 초보자 친화 | ⚪ white |
 
-### 마일스톤
+### 마일스톤 상태
 
-| 마일스톤 | 목표 | 이슈 수 |
-|---------|------|--------|
-| v1.2.0 | 안정성 강화 | 3 |
-| v1.3.0 | 개발 효율성 | 3 |
-| v2.0.0 | 코드 품질 | 3 |
-| v2.1.0 | 기능 확장 | 4 |
+| 마일스톤 | 목표 | 상태 |
+|---------|------|------|
+| v1.2.0 | 안정성 강화 | ✅ 완료 |
+| v1.3.0 | 개발 효율성 | ✅ 완료 |
+| v2.0.0 | 코드 품질 | 📋 예정 |
+| v2.1.0 | 기능 확장 | 📋 예정 |
 
 ---
 
