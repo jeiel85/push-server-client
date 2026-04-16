@@ -8,8 +8,8 @@
 
 | 구성요소 | 현재 상태 | 상태 |
 |---------|---------|------|
-| **서버 (ws002)** | .NET Core 3.1, 포트 7000, SuperSocket | - |
-| **클라이언트 (Poscle35)** | .NET Framework 3.5, Windows Forms | - |
+| **서버 (ws002)** | .NET 9, 포트 7000, ASP.NET Core WebSocket | 🔄 마이그레이션 중 |
+| **클라이언트 (Poscle35)** | .NET 9, Windows Forms | 🔄 마이그레이션 중 |
 | **WebSocket** | 연결/메시지 전송/재연결 | ✅ 완료 |
 | **문서화** | README.md, PROJECT_STRUCTURE.md | ✅ 완료 |
 | **CI/CD** | GitHub Actions 자동 빌드 | ✅ 완료 |
