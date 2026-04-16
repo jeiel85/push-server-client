@@ -112,7 +112,7 @@ namespace Poscle35
                         Body = new LogBin
                         {
                             deviceId = myID,
-                            com_id = "wavepostest",
+                            com_id = "demo",
                             rct_code = "1002"
                         }
                     };
@@ -133,7 +133,7 @@ namespace Poscle35
                         Key = "MSG",
                         Body = new MsgBin
                         {
-                            com_id = "wavepostest",
+                            com_id = "demo",
                             rct_code = "1002",
                             order_info = JsonConvert.SerializeObject(
                                 new
