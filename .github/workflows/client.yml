@@ -27,22 +27,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-    
-    - name: Restore NuGet packages
-      run: |
-        nuget restore Poscle35.sln
-    
-    - name: Build
-      run: |
-        msbuild Poscle35.sln /p:Configuration=Release /p:Platform="AnyCPU" /t:Build
-    
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
     - name: Publish
       run: |
-        mkdir -Force ..\artifacts\PushClient-win-x64
-        Copy-Item -Path "bin\Release\*" -Destination "..\artifacts\PushClient-win-x64\" -Recurse -Force
+        dotnet publish Poscle35.csproj -c Release -r win-x64 --self-contained false -o ..\artifacts\PushClient-win-x64
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
