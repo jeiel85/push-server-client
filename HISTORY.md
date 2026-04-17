@@ -6,19 +6,17 @@
 
 ## 📅 2026-04-17
 
-### 🚀 GitHub Actions 배포 워크플로우 수정
-- **현상**: GitHub Actions에서 `release` 작업 중 파일 경로를 찾지 못하거나 아티팩트가 비어 있는 문제 발생.
-- **원인**:
-    1. `upload-artifact` 시 `working-directory` 설정으로 인해 실제 파일이 있는 경로와 업로드 경로가 불일치함.
-    2. `ubuntu-latest` 환경에서 `powershell`의 `Compress-Archive`를 사용했으나 경로 및 환경 차이로 비정상 작동 가능성.
-    3. 아티팩트 다운로드 후 압축 시 경로 참조 오류.
+### 🚀 GitHub Actions 배포 워크플로우 2차 수정
+- **현상**: `v2.4.3` 태그 배포 실패.
+- **원인 분석**:
+    1. 클라이언트(`Poscle35`)가 .NET 9(SDK-style)임에도 불구하고 `msbuild`와 `nuget restore`를 사용함.
+    2. `nuget restore Poscle35.sln` 실행 시 해당 폴더에 `.sln` 파일이 없어 오류 발생 가능성.
+    3. `zip` 명령어의 와일드카드(`*`) 처리 문제 가능성.
 - **수정 사항**:
-    - `build-server`, `build-client`의 `publish` 출력을 로컬 `publish/` 폴더로 변경.
-    - `upload-artifact` 경로를 루트 기준(`ws002/publish/`, `Poscle35/publish/`)으로 명시하여 정확한 파일 업로드 보장.
-    - `release` 작업에서 `powershell` 대신 표준 `zip` 명령어를 사용하여 호환성 및 안정성 확보.
-    - 다운로드 및 압축 경로를 `release_artifacts/`로 통일하여 명확하게 관리.
-- **결과**: 수정 사항 커밋 및 푸시 완료. 태그 `v2.4.3` 생성으로 워크플로우 재실행.
-- **문서화**: `ROADMAP.md`를 최신 프로젝트 상태(.NET Core 3.1 등)에 맞춰 업데이트.
+    - 클라이언트 빌드를 `dotnet publish` 명령어로 교체하여 .NET 9 환경에 최적화.
+    - 클라이언트 작업에서 `setup-dotnet` 단계 추가 및 `dotnet restore` 사용.
+    - `release` 작업에서 `zip` 설치 보장 및 압축 명령어 단순화 (디렉토리 직접 지정).
+- **결과**: 수정 사항 커밋 및 푸시 완료. 태그 `v2.4.4` 생성으로 워크플로우 재실행.
 
 ### 🔧 기타 수정 사항 (Git 이력 기반)
 - `fix: Add release workflow with proper permissions` (v2.4.2)

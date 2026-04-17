@@ -56,19 +56,19 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
     
-    - name: Restore NuGet packages
-      run: nuget restore Poscle35.sln
+    - name: Restore dependencies
+      run: dotnet restore
     
     - name: Build
-      run: msbuild Poscle35.sln /p:Configuration=Release /p:Platform="AnyCPU" /t:Build
+      run: dotnet build --configuration Release --no-restore
     
     - name: Publish
-      run: |
-        mkdir -Force .\publish\PushClient-win-x64
-        Copy-Item -Path "bin\Release\*" -Destination ".\publish\PushClient-win-x64\" -Recurse -Force
+      run: dotnet publish -c Release -r win-x64 --self-contained true -o ./publish/PushClient-win-x64
 
     - name: Upload client artifacts
       uses: actions/upload-artifact@v4
@@ -98,11 +98,12 @@ jobs:
 
     - name: Create ZIP files
       run: |
+        sudo apt-get update && sudo apt-get install -y zip
         cd release_artifacts/server
-        zip -r ../../ws002-${{ github.ref_name }}-win-x64.zip ws002-win-x64/*
-        zip -r ../../ws002-${{ github.ref_name }}-linux-x64.zip ws002-linux-x64/*
+        zip -r ../../ws002-${{ github.ref_name }}-win-x64.zip ws002-win-x64
+        zip -r ../../ws002-${{ github.ref_name }}-linux-x64.zip ws002-linux-x64
         cd ../client
-        zip -r ../../PushClient-${{ github.ref_name }}-win-x64.zip PushClient-win-x64/*
+        zip -r ../../PushClient-${{ github.ref_name }}-win-x64.zip PushClient-win-x64
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
