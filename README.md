@@ -93,10 +93,13 @@ push-server-client/
 ├── 📂 ws002/                          # 🔷 WebSocket Server (.NET 9)
 │   ├── Program.cs                      # Entry point + 미들웨어
 │   ├── Middleware/
-│   │   └── RateLimitingMiddleware.cs   # Rate Limiting
+│   │   ├── RateLimitingMiddleware.cs   # Rate Limiting
+│   │   └── JwtAuthenticationMiddleware.cs  # JWT 인증
 │   ├── Services/
 │   │   ├── UserService.cs              # 세션 관리
-│   │   └── WebSocketSession.cs         # WebSocket 세션
+│   │   ├── WebSocketSession.cs         # WebSocket 세션
+│   │   ├── SessionStore.cs             # Redis/In-Memory 세션 스토어
+│   │   └── EncryptionService.cs        # AES-256 암호화
 │   ├── Models/                        # 데이터 모델
 │   ├── appsettings.json                # 프로덕션 설정
 │   └── ws002.csproj
@@ -108,6 +111,12 @@ push-server-client/
 │   ├── deployment.yaml                  # Deployment + Service + HPA
 │   ├── configmap.yaml                 # ConfigMap
 │   └── ingress.yaml                    # Ingress
+│
+├── 📂 src/
+│   └── 📂 PushClient/                  # 📦 NuGet SDK (.NET 9/8/Standard 2.1)
+│       ├── PushClientSDK.cs             # WebSocket 클라이언트 SDK
+│       ├── PushClientOptions.cs        # 설정 옵션
+│       └── Models/                      # 요청/응답 모델
 │
 ├── 📄 Dockerfile                       # Docker 빌드
 ├── 📄 docker-compose.yml               # Docker Compose
@@ -152,6 +161,45 @@ info: Microsoft.AspNetCore.Server.Kestrel[]
 ```bash
 # Visual Studio에서 Poscle35 프로젝트 열기
 # F5 또는 Ctrl+F5로 실행
+```
+
+### NuGet SDK 사용 (.NET 프로젝트)
+
+```bash
+# NuGet 패키지 설치
+dotnet add package PushServer.Client
+```
+
+```csharp
+using PushServer.Client;
+
+// 옵션 설정
+var options = new PushClientOptions
+{
+    ServerUrl = "ws://localhost:7000/",
+    DeviceId = "my-device-001",
+    CompanyId = "demo",
+    ReceiverCode = "1002",
+    UseJwtAuth = true,
+    JwtToken = "your-jwt-token"
+};
+
+// SDK 생성
+using var client = new PushClientSDK(options);
+
+// 이벤트 구독
+client.ConnectionChanged += (sender, connected) =>
+    Console.WriteLine(connected ? "연결됨!" : "연결 해제됨!");
+
+client.MessageReceived += (sender, message) =>
+    Console.WriteLine($"수신: {message}");
+
+// 연결 및 등록
+client.Connect();
+client.ConnectAndRegister();
+
+// 메시지 전송
+client.SendMessage("1003", new { OrderId = 12345, Amount = 10000 });
 ```
 
 ---
@@ -388,8 +436,22 @@ scrape_configs:
 | 🚦 **Rate Limiting** | IP별 요청 제한 (1000 req/min) |
 | 🔄 **Graceful Shutdown** | 30초 타임아웃 |
 | 📚 **API 문서화** | Swagger/OpenAPI |
+| 🔐 **JWT 인증** | 토큰 기반 인증 시스템 |
+| 🔒 **AES-256 암호화** | 메시지 암호화 지원 |
+| 🗄️ **Redis 세션** | Redis/In-Memory 세션 스토어 |
 
 ### 클라이언트 기능
+
+| 기능 | 설명 |
+|------|------|
+| 📦 **NuGet SDK** | `PushServer.Client` NuGet 패키지 |
+| 🔄 **자동 재연결** | 지수 백오프 기반 자동 재연결 |
+| 🔐 **JWT 지원** | SDK에서 JWT 인증 지원 |
+| 🔒 **암호화 지원** | SDK에서 AES-256 암호화 지원 |
+| 🖥️ **GUI 인터페이스** | Windows Forms 기반 직관적인 UI |
+| 🔗 **연결 관리** | 원-click 연결/연결 해제 |
+| 📤 **요청 전송** | 미리 정의된 명령 템플릿 전송 |
+| 📥 **응답 표시** | 요청/응답 로그 별도 표시 |
 
 | 기능 | 설명 |
 |------|------|
@@ -439,14 +501,14 @@ scrape_configs:
 
 ## 🔮 향후 확장
 
-### 진행 중인 항목
+### 완료된 항목 ✅
 
-| 확장 | 설명 | 상태 |
+| 확장 | 설명 | 버전 |
 |------|------|------|
-| 🔐 **JWT 인증** | 토큰 기반 인증 시스템 | 📋 예정 |
-| 🔄 **Redis 세션** | 분산 세션 스토어 | 📋 예정 |
-| 🔒 **메시지 암호화** | AES-256 메시지 암호화 | 📋 예정 |
-| 📦 **NuGet SDK** | .NET 클라이언트 SDK | 📋 예정 |
+| 🔐 **JWT 인증** | 토큰 기반 인증 시스템 | v2.2.0 |
+| 🔄 **Redis 세션** | 분산 세션 스토어 | v2.2.0 |
+| 🔒 **메시지 암호화** | AES-256 메시지 암호화 | v2.4.0 |
+| 📦 **NuGet SDK** | .NET 클라이언트 SDK | v2.4.0 |
 
 ### 추가 개발 필요
 
@@ -479,8 +541,8 @@ MIT License
 ## 👤 작성자
 
 **Project**: push-server-client
-**Version**: 2.1.0
-**Last Updated**: 2026-04-16
+**Version**: 2.4.0
+**Last Updated**: 2026-04-17
 
 ---
 
