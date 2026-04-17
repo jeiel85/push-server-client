@@ -25,4 +25,8 @@
     </Compile>
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="System.Threading" />
+  </ItemGroup>
+
 </Project>
