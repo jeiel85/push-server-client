@@ -122,4 +122,4 @@ jobs:
           artifacts/ws002-${{ github.ref_name }}-win-x64.zip
         overwrite_files: false
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT }}
