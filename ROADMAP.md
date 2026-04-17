@@ -8,11 +8,11 @@
 
 | 구성요소 | 현재 상태 | 상태 |
 |---------|---------|------|
-| **서버 (ws002)** | .NET 9, 포트 7000, ASP.NET Core WebSocket | 🔄 마이그레이션 중 |
-| **클라이언트 (Poscle35)** | .NET 9, Windows Forms | 🔄 마이그레이션 중 |
+| **서버 (ws002)** | .NET Core 3.1, SuperSocket v2 | ✅ 완료 |
+| **클라이언트 (Poscle35)** | .NET Framework 3.5, WinForms | ✅ 완료 |
 | **WebSocket** | 연결/메시지 전송/재연결 | ✅ 완료 |
-| **문서화** | README.md, PROJECT_STRUCTURE.md | ✅ 완료 |
-| **CI/CD** | GitHub Actions 자동 빌드 | ✅ 완료 |
+| **문서화** | README.md, HISTORY.md 추가 | ✅ 완료 |
+| **CI/CD** | GitHub Actions 릴리스 파이프라인(v2.4.3) | ✅ 완료 |
 | **보안** | credentials 제거, TLS 설정 템플릿 | ✅ 완료 |
 | **로깅** | Serilog + 파일 로깅 (7일) | ✅ 완료 |
 
@@ -32,9 +32,26 @@
 
 | 이슈 | 설명 | 상태 | 커밋 |
 |------|------|------|------|
-| ⚙️ **CI/CD 파이프라인** | GitHub Actions 자동 빌드 | ✅ 완료 | a4993cc |
+| ⚙️ **CI/CD 파이프라인** | GitHub Actions 자동 빌드 및 릴리스 | ✅ 완료 | 999cec0 |
 | 🐳 **Docker 지원** | - | 📋 미진행 | - |
 | 🔒 **TLS/SSL 적용** | 설정 템플릿, 가이드 문서 | ✅ 완료 | a4993cc |
+
+---
+
+## ✅ 완료된 개선사항 상세
+
+... (생략) ...
+
+### 6. GitHub Actions 릴리스 자동화 (✅ 완료)
+
+**구현 내용**:
+- `v*` 태그 푸시 시 자동 빌드 및 릴리스 생성
+- 서버(.NET Core) Windows/Linux 멀티 플랫폼 빌드
+- 클라이언트(.NET 3.5) MSBuild 기반 빌드
+- 아티팩트 자동 압축 및 GitHub Release 업로드
+- 경로 오류 및 zip 명령어 호환성 문제 해결 (v2.4.3)
+
+---
 
 ### 📋 Phase 3: 코드 품질 (예정)
 

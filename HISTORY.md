@@ -17,7 +17,8 @@
     - `upload-artifact` 경로를 루트 기준(`ws002/publish/`, `Poscle35/publish/`)으로 명시하여 정확한 파일 업로드 보장.
     - `release` 작업에서 `powershell` 대신 표준 `zip` 명령어를 사용하여 호환성 및 안정성 확보.
     - 다운로드 및 압축 경로를 `release_artifacts/`로 통일하여 명확하게 관리.
-- **결과**: 수정 사항 커밋 및 푸시 완료. GitHub Actions 재검증 대기 중.
+- **결과**: 수정 사항 커밋 및 푸시 완료. 태그 `v2.4.3` 생성으로 워크플로우 재실행.
+- **문서화**: `ROADMAP.md`를 최신 프로젝트 상태(.NET Core 3.1 등)에 맞춰 업데이트.
 
 ### 🔧 기타 수정 사항 (Git 이력 기반)
 - `fix: Add release workflow with proper permissions` (v2.4.2)
