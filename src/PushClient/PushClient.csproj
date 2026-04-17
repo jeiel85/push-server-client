@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>PushServer.Client</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Jeiel</Authors>
+    <Company>PushServer</Company>
+    <Product>PushServer WebSocket Client SDK</Product>
+    <Description>WebSocket client SDK for PushServer with auto-reconnection, JWT authentication, and message encryption support.</Description>
+    <Copyright>Copyright 2026</Copyright>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/jeiel85/push-server-client</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>websocket;push;notification;realtime</PackageTags>
+    <RootNamespace>PushServer.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="WebSocketSharp" Version="1.0.0-rc11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="README.md">
+      <PackagePath>docs/</PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -39,6 +39,11 @@ builder.Services.AddSingleton<UserService>();
 var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING");
 builder.Services.AddSessionStore(redisConnectionString);
 
+// Encryption Service
+var encryptionKey = Environment.GetEnvironmentVariable("AES_ENCRYPTION_KEY");
+var encryptionIv = Environment.GetEnvironmentVariable("AES_ENCRYPTION_IV");
+builder.Services.AddSingleton(new EncryptionService(encryptionKey, encryptionIv));
+
 // JWT Authentication
 var jwtSettings = new JwtSettings
 {
@@ -176,6 +181,7 @@ app.Map("/ws", async (HttpContext context) =>
 
     var userService = context.RequestServices.GetRequiredService<UserService>();
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    var encryptionService = context.RequestServices.GetRequiredService<EncryptionService>();
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();
     var connectionId = Guid.NewGuid().ToString();
@@ -211,12 +217,18 @@ app.Map("/ws", async (HttpContext context) =>
             if (result.MessageType == WebSocketMessageType.Text)
             {
                 var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                logger.LogDebug("[RECV] {ConnectionId}: {Message}", connectionId, message);
+
+                // Decrypt message if encryption is enabled
+                var decryptedMessage = encryptionService.IsEnabled
+                    ? encryptionService.Decrypt(message)
+                    : message;
+
+                logger.LogDebug("[RECV] {ConnectionId}: {Message}", connectionId, decryptedMessage);
 
                 // Prometheus metrics
                 Metrics.CreateCounter("websocket_messages_received_total", "Total messages received").Inc();
 
-                await HandleMessageAsync(session, message, userService, logger);
+                await HandleMessageAsync(session, decryptedMessage, userService, logger, encryptionService);
             }
         }
     }
@@ -260,7 +272,7 @@ lifetime.ApplicationStopped.Register(() =>
 
 app.Run();
 
-async Task HandleMessageAsync(WebSocketSession session, string message, UserService userService, ILogger logger)
+async Task HandleMessageAsync(WebSocketSession session, string message, UserService userService, ILogger logger, EncryptionService encryptionService)
 {
     try
     {
@@ -281,7 +293,7 @@ async Task HandleMessageAsync(WebSocketSession session, string message, UserServ
                 break;
 
             case "MSG":
-                await HandleMsgAsync(session, body, userService);
+                await HandleMsgAsync(session, body, userService, encryptionService);
                 // Prometheus metrics
                 Metrics.CreateCounter("websocket_messages_sent_total", "Total messages sent by server").Inc();
                 break;
@@ -326,7 +338,7 @@ async Task HandleConnectListAsync(WebSocketSession session, JObject? body, UserS
     await userService.GetConnectList(session);
 }
 
-async Task HandleMsgAsync(WebSocketSession session, JObject? body, UserService userService)
+async Task HandleMsgAsync(WebSocketSession session, JObject? body, UserService userService, EncryptionService encryptionService)
 {
     var comId = body?["com_id"]?.ToString();
     var rctCode = body?["rct_code"]?.ToString();
@@ -336,7 +348,11 @@ async Task HandleMsgAsync(WebSocketSession session, JObject? body, UserService u
 
     if (toSess != null)
     {
-        await toSess.SendAsync(orderInfo ?? "");
+        var message = orderInfo ?? "";
+        var encryptedMessage = encryptionService.IsEnabled
+            ? encryptionService.Encrypt(message)
+            : message;
+        await toSess.SendAsync(encryptedMessage);
         await session.SendAsync(JsonConvert.SerializeObject(new { res = "MSG", toSess.deviceid }));
     }
     else
