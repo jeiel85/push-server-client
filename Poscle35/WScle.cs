@@ -1,9 +1,10 @@
 using Newtonsoft.Json;
 using Poscle35.Models;
 using System;
-using System.Threading;
 using System.Windows.Forms;
 using WebSocketSharp;
+using Timer = System.Threading.Timer;
+using ThreadingTimer = System.Threading.Timer;
 
 namespace Poscle35
 {
@@ -19,12 +20,12 @@ namespace Poscle35
         
         private int retryCount = 0;
         private bool isReconnecting = false;
-        private Timer reconnectTimer;
+        private ThreadingTimer reconnectTimer;
         private bool isManualDisconnect = false;
 
         public RichTextBox ReqLog;
         public RichTextBox ResLog;
-        public Label sessLabel;
+        public ToolStripStatusLabel? sessLabel;
 
         public string myID = "";
         public string cmdKey = "";
@@ -125,7 +126,7 @@ namespace Poscle35
             if (OnReconnecting != null)
                 OnReconnecting(statusMsg, retryCount, MAX_RETRY_COUNT);
 
-            reconnectTimer = new Timer(_ =>
+            reconnectTimer = new ThreadingTimer(_ =>
             {
                 reconnectTimer?.Dispose();
                 reconnectTimer = null;
