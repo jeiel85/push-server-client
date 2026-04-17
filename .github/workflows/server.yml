@@ -7,11 +7,13 @@ on:
       - 'v*'
     paths:
       - 'ws002/**'
+      - 'Poscle35/**'
       - '.github/workflows/server.yml'
   pull_request:
     branches: [ master ]
     paths:
       - 'ws002/**'
+      - 'Poscle35/**'
       - '.github/workflows/server.yml'
   workflow_dispatch:
 
@@ -31,25 +33,25 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Restore dependencies
+    - name: Restore Server dependencies
       run: dotnet restore
       working-directory: ws002
 
-    - name: Build
+    - name: Build Server
       run: dotnet build --configuration ${{ env.PUBLISH_CONFIGURATION }} --no-restore
       working-directory: ws002
 
-    - name: Publish
-      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish --self-contained false
+    - name: Publish Server
+      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/server --self-contained false
       working-directory: ws002
 
-    - name: Create Release ZIP
+    - name: Create Server Release ZIP
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
-        cd publish
+        cd publish/server
         zip -r ../ws002-${{ github.ref_name }}-linux-x64.zip .
 
-    - name: Upload Artifact
+    - name: Upload Server Artifact
       if: startsWith(github.ref, 'refs/tags/v')
       uses: actions/upload-artifact@v4
       with:
@@ -69,23 +71,42 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Restore dependencies
+    - name: Restore Server dependencies
       run: dotnet restore
       working-directory: ws002
 
-    - name: Publish
-      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish
+    - name: Restore Client dependencies
+      run: dotnet restore
+      working-directory: Poscle35
+
+    - name: Build Client
+      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/client
+      working-directory: Poscle35
+
+    - name: Publish Server
+      run: dotnet publish -c ${{ env.PUBLISH_CONFIGURATION }} -o ../publish/server
       working-directory: ws002
 
-    - name: Create Release ZIP
+    - name: Create Server ZIP
       run: |
-        Compress-Archive -Path publish/* -DestinationPath ws002-${{ github.ref_name }}-win-x64.zip -Force
+        Compress-Archive -Path publish/server/* -DestinationPath ws002-${{ github.ref_name }}-server-win-x64.zip -Force
 
-    - name: Upload Artifact
+    - name: Create Client ZIP
+      run: |
+        Compress-Archive -Path publish/client/* -DestinationPath PushClient-${{ github.ref_name }}-win-x64.zip -Force
+
+    - name: Upload Server Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ws002-windows
-        path: ws002-${{ github.ref_name }}-win-x64.zip
+        path: ws002-${{ github.ref_name }}-server-win-x64.zip
+        retention-days: 30
+
+    - name: Upload Client Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pushclient-windows
+        path: PushClient-${{ github.ref_name }}-win-x64.zip
         retention-days: 30
 
   release:
@@ -102,10 +123,16 @@ jobs:
         name: ws002-linux
         path: ./artifacts
 
-    - name: Download Windows Artifact
+    - name: Download Windows Server Artifact
       uses: actions/download-artifact@v4
       with:
         name: ws002-windows
+        path: ./artifacts
+
+    - name: Download Windows Client Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: pushclient-windows
         path: ./artifacts
 
     - name: List Artifacts
@@ -119,7 +146,8 @@ jobs:
         generate_release_notes: false
         files: |
           artifacts/ws002-${{ github.ref_name }}-linux-x64.zip
-          artifacts/ws002-${{ github.ref_name }}-win-x64.zip
+          artifacts/ws002-${{ github.ref_name }}-server-win-x64.zip
+          artifacts/PushClient-${{ github.ref_name }}-win-x64.zip
         overwrite_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
